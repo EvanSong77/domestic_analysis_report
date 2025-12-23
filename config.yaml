@@ -1,0 +1,153 @@
+# 国内分析报告系统配置
+
+# 基本配置
+version: "1.3.5"
+environment: "test"
+debug: false
+language: "zh"
+use_fix_tag: true
+
+# 数据库配置
+# 中间表数据库 (用于存储中间结果)
+intermediate_db:
+  test:
+    host: "10.1.253.215"
+    port: 3306
+    database: "finoa"
+    username: "eleinvoice_user"
+    password: "Dwjks_2490sHW"
+    table_name: "tb_bij_operation_diagnosis_req_result"
+    timeout: 30
+    max_connections: 10
+    # SQL语句配置
+    insert_sql: "INSERT INTO tb_bij_operation_diagnosis_req_result (req_id, req_param, resp_result, create_time, update_time) VALUES (%(req_id)s, %(req_param)s, %(resp_result)s, NOW(), NOW())"
+    select_sql: "SELECT id, req_id, req_param, resp_result, create_time, update_time FROM tb_bij_operation_diagnosis_req_result WHERE req_id = %(req_id)s ORDER BY create_time DESC LIMIT 1"
+  uat:
+    host: "10.1.253.215"
+    port: 3306
+    database: "finoa"
+    username: "eleinvoice_user"
+    password: "Dwjks_2490sHW"
+    table_name: "tb_bij_operation_diagnosis_req_result"
+    timeout: 30
+    max_connections: 10
+    # SQL语句配置
+    insert_sql: "INSERT INTO tb_bij_operation_diagnosis_req_result (req_id, req_param, resp_result, create_time, update_time) VALUES (%(req_id)s, %(req_param)s, %(resp_result)s, NOW(), NOW())"
+    select_sql: "SELECT id, req_id, req_param, resp_result, create_time, update_time FROM tb_bij_operation_diagnosis_req_result WHERE req_id = %(req_id)s ORDER BY create_time DESC LIMIT 1"
+  prod:
+    host: "eleinvoice-mdb.dahuatech.com"
+    port: 3306
+    database: "finoa"
+    username: "bi_user"
+    password: "cI4cA0"
+    table_name: "tb_bij_operation_diagnosis_req_result"
+    timeout: 30
+    max_connections: 20
+    # SQL语句配置
+    insert_sql: "INSERT INTO tb_bij_operation_diagnosis_req_result (req_id, req_param, resp_result, create_time, update_time) VALUES (%(req_id)s, %(req_param)s, %(resp_result)s, NOW(), NOW())"
+    select_sql: "SELECT id, req_id, req_param, resp_result, create_time, update_time FROM tb_bij_operation_diagnosis_req_result WHERE req_id = %(req_id)s ORDER BY create_time DESC LIMIT 1"
+
+# 数据表数据库 (用于存储原始业务数据)
+data_db:
+  test:
+    host: "10.1.104.242"
+    port: 9030
+    database: "finbi_dm"
+    username: "FINBI_UAT"
+    password: "FIUi9#3698677O"
+    table_name: "DM_F_AI_GROSS_ANALYZE_DORIS"
+    # 基础查询SQL，会动态添加WHERE条件
+    query_sql: "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS"
+    timeout: 30
+    max_connections: 10
+  uat:
+    host: "10.1.104.242"
+    port: 9030
+    database: "finbi_dm"
+    username: "FINBI_UAT"
+    password: "FIUi9#3698677O"
+    table_name: "DM_F_AI_GROSS_ANALYZE_DORIS"
+    # 基础查询SQL，会动态添加WHERE条件
+    query_sql: "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS"
+    timeout: 30
+    max_connections: 10
+  prod:
+    host: "10.3.0.44"
+    port: 9030
+    database: "finbi_dm"
+    username: "FINBI_DM"
+    password: "FIN2020@wsx#EDC"
+    table_name: "DM_F_AI_GROSS_ANALYZE_DORIS"
+    # 基础查询SQL，会动态添加WHERE条件
+    query_sql: "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS"
+    timeout: 30
+    max_connections: 20
+
+# AI模型配置
+models:
+  qwen3-32b:
+    base_url:
+      test: "https://aimarket.dahuatech.com/it/qwen-fast/v1"
+      uat: "https://aimarket.dahuatech.com/it/qwen-fast/v1"
+      prod: "https://aimarket.dahuatech.com/it/qwen-fast/v1"
+    api_key: "k0FG94TBecKxBgip4BQR2jyBO6x8pb2s"
+    model_name: "qwen3-32b"
+    max_tokens: 40960
+    temperature: 0
+    top_p: 0.95
+    timeout: 600
+    max_retries: 3
+  qwen3-235b:
+    base_url:
+      test: "http://10.1.110.2:11010/qwen3-235b-instruct/v1"
+      uat: "http://10.1.110.2:31010/qwen3-235b-instruct/v1"
+      prod: "http://10.1.110.2:11010/qwen3-235b-instruct/v1"
+    api_key: "6fcf3eaf8297ab66c9bc76e54920c8ec"
+    model_name: "qwen3-235b"
+    max_tokens: 40960
+    temperature: 0
+    top_p: 0.95
+    timeout: 600
+    max_retries: 3
+
+# 应用配置
+app:
+  host: "0.0.0.0"
+  port: 12576
+  workers: 1
+  reload: true
+  data_path: "data"
+  log_level: "INFO"
+  log_file: "logs/app.log"
+  template_path: "data/model_template.json"
+  max_concurrent: 8
+
+# 安全配置
+security:
+  bearer_token: "yLZJJb8-EBsdUf2IimbGFNkaONMwbZy2WNh5luqpkWk"
+  rate_limit:
+    requests_per_minute: 60
+    burst_limit: 100
+
+# 回调配置
+callback:
+  test:
+    url: "https://finba.dah-demo.com/bij/reqresult/callback"
+    bearer_token: ""
+    timeout: 30
+  uat:
+    url: "https://finba.dah-demo.com/bij/reqresult/callback"
+    bearer_token: ""
+    timeout: 30
+  prod:
+    url: ""
+    bearer_token: ""
+    timeout: 30
+
+# 并发控制配置
+concurrency:
+  max_total_concurrent: 1  # 所有实例允许的最大并发数
+  lock_file_path: "logs/concurrency_lock.json"  # 锁文件路径
+  acquire_timeout: 5  # 获取锁的超时时间（秒）
+  instance_heartbeat_interval: 60  # 实例心跳间隔（秒）
+  stale_instance_timeout: 300  # 实例超时时间（秒）

@@ -1,0 +1,260 @@
+{
+  "TOTAL": {
+    "ORG": {
+      "CURRENT": [
+        {
+          "sql": "SELECT ASSESS_CENTER_NAME_LV5,GPM_GAP FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_UNACHIEVE = 1 ORDER BY GPM_GAP ASC limit 20",
+          "template": "未达成毛利预测数量: {gpm_unachieve_count}",
+          "fields": {
+            "gpm_unachieve_count": {
+              "operation": "count",
+              "source_key": "gpm_unachieve"
+            }
+          }
+        },
+        {
+          "sql": "SELECT ASSESS_CENTER_NAME_LV5,GPM_GAP FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_UNACHIEVE = 1 ORDER BY GPM_GAP ASC limit 20",
+          "template": "毛利预测未达成省份: {gpm_unachieve_pro}",
+          "condition": "fields.get('gpm_unachieve_pro') is not None",
+          "fields": {
+            "gpm_unachieve_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_gap",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": ", "
+            }
+          }
+        },
+        {
+          "sql": "SELECT ASSESS_CENTER_NAME_LV5,GPM,GPM_LAST_MONTH,GPM_BEFORE_LAST_MONTH,(GPM - GPM_LAST_MONTH) - (GPM_LAST_MONTH - GPM_BEFORE_LAST_MONTH) FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_CONTINUE_DECLINE = 1 ORDER BY (GPM - GPM_LAST_MONTH) - (GPM_LAST_MONTH - GPM_BEFORE_LAST_MONTH) ASC LIMIT 20",
+          "template": "毛利连续2月下降省份: {gpm_continue_pro}",
+          "condition": "fields.get('gpm_continue_pro') is not None",
+          "fields": {
+            "gpm_continue_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "gpm_before_last_month",
+                "gpm_last_month",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}-{v1}-{v2})",
+              "separator": ", "
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": {},
+      "ABNORMAL": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_UNACHIEVE = 1 AND SORT_ID <= 20 ORDER BY GPM ASC limit 5",
+          "template": "项目负毛利异常{negative_gpm_count}个，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大； {project_details}",
+          "condition": "fields.get('negative_gpm_count', 0) > 0",
+          "fields": {
+            "negative_gpm_count": {
+              "operation": "extract_first_value",
+              "source_key": "negative_gpm_number"
+            },
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv5"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "{value}({key})",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "{value}({key})",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "competition_name",
+                "crm_contract_number",
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "salesman_id",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}-{v0}({v1})-{v2}({v3})-{v4}({v5})-{v6}；",
+              "separator": "\n",
+              "limit": 3
+            }
+          }
+        }
+      ]
+    },
+    "CHAN": {
+      "CURRENT": {},
+      "CUMULATIVE": {},
+      "ABNORMAL": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND SORT_ID <= 20 ORDER BY GPM ASC limit 5",
+          "template": "主航道占比<50% or 网线硬盘指定外购占比>10%TOP客户，以下列示TOP5：其中{most_common_province}客户{customers}，影响较大；\n       {customer_details}",
+          "fields": {
+            "most_common_province": {
+              "operation": "extract_most_common",
+              "name_key": "assess_center_name_lv5"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "{value}({key})",
+              "separator": "、",
+              "limit": 2
+            },
+            "customer_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "salesman_id",
+                "income_rate",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}-{v0}({v1})-{v2}({v3})：主航道占比{v4}、网线硬盘指定外购占比{v5}；",
+              "separator": "\n",
+              "limit": 3
+            }
+          }
+        }
+      ]
+    },
+    "IND": {
+      "CURRENT": {},
+      "CUMULATIVE": {},
+      "ABNORMAL": [
+        {
+          "sql": "SELECT ASSESS_CENTER_NAME_LV5,INDUSTRY_LV1_NAME,GROUP_CUST_NAME,GROUP_CUST_CRM,SALESMAN_NAME,SALESMAN_ID,INCOME_TOTAL,GPM,INCOME_RATE,GPM - CAST(REPLACE(GPM_BASE_LINE,'%%','') AS DOUBLE)/100 FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND SORT_ID <= 20 ORDER BY GPM - CAST(REPLACE(GPM_BASE_LINE,'%%','') AS DOUBLE)/100 ASC limit 5",
+          "template": "主航道占比低于国内均值({incomes_rate_ave})行业: {incomes_rate_lower_ave_pro}",
+          "condition": "fields.get('incomes_rate_lower_ave_pro') is not None",
+          "fields": {
+            "incomes_rate_ave": {
+              "operation": "extract_avg",
+              "name_key": "incomes_rate_average",
+              "format": "percentage"
+            },
+            "incomes_rate_lower_ave_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "incomes_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": ", "
+            }
+          }
+        },
+        {
+          "sql": "SELECT ASSESS_CENTER_NAME_LV5,INDUSTRY_LV1_NAME,GROUP_CUST_NAME,GROUP_CUST_CRM,SALESMAN_NAME,SALESMAN_ID,INCOME_TOTAL,GPM,INCOME_RATE,GPM - CAST(REPLACE(GPM_BASE_LINE,'%%','') AS DOUBLE)/100 FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND SORT_ID <= 20 ORDER BY GPM - CAST(REPLACE(GPM_BASE_LINE,'%%','') AS DOUBLE)/100 ASC limit 5",
+          "template": "各行业毛利异常TOP5客户(GROUP)，以下列示TOP5：其中{most_common_industry}客户{customer}，影响较大；\n       {industry_details}",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "industry_lv1_name"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "industry_lv1_name",
+              "id_key": "group_cust_crm",
+              "id_value": "group_cust_name",
+              "format": "string",
+              "item_format": "{value}({key})",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "group_cust_name",
+                "group_cust_crm",
+                "salesman_name",
+                "salesman_id",
+                "income_total",
+                "gpm",
+                "income_rate"
+              ],
+              "item_format": "{name}-{v0}({v1})-{v2}({v3})：收入{v4:.2f}万、毛利{v5:.1%}、主航道占比{v6:.1%}；",
+              "separator": "\n",
+              "limit": 3
+            }
+          }
+        }
+      ]
+    },
+    "PROD": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    }
+  },
+  "PROVINCE": {
+    "ORG": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    },
+    "CHAN": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    },
+    "IND": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    },
+    "PROD": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    }
+  },
+  "OFFICE": {
+    "ORG": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    },
+    "CHAN": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    },
+    "IND": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    },
+    "PROD": {
+      "CURRENT": [],
+      "CUMULATIVE": [],
+      "ABNORMAL": []
+    }
+  }
+}
