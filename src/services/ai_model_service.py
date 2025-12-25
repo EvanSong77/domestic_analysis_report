@@ -15,7 +15,7 @@ from src.config.config import get_settings
 from src.config.constants import MODULE_DIMENSIONS, CONTENT_TYPE_CONFIG, USER_PROMPT_DICTS, SPECIAL_PROVINCES_SQL
 from src.utils import log_utils
 from src.utils.db_utils import MySQLDataConnector
-from src.utils.processor import DataTemplateProcessor
+from src.utils.async_processor import DataTemplateProcessor
 from src.utils.tag_repair import XMLTagValidator
 
 logger = log_utils.logger
@@ -135,19 +135,25 @@ class AIModelService:
 
     async def generate_diagnosis_report(self, query_results: List[Dict]) -> Dict:
         """
-        主入口：根据 query_results 生成报告，保持输入顺序，一条输入 -> 一个最终报告。
-        参数：
-          - query_results: 列表，每项为 dict（原始参数 + 可能的其它信息）
-        返回：
-          - 包含每个输入的生成结果（顺序对应传入顺序）
+        主入口：根据 query_results 生成报告
+
+        ⭐ 改进：processor.process() 在线程池中异步执行
         """
         try:
             # 1) 扩展任务（为每条输入创建对应维度的内容类型任务，占位可配置）
             expanded_tasks = []
+
             for origin_index, query_result in enumerate(query_results):
                 data_template = self._get_data_template_config()
                 processor = DataTemplateProcessor(data_template, self.special_provinces, self.db_connector)
-                processed_results = processor.process(query_result)
+
+                # ⭐ 改进：在线程池中执行 process()，不阻塞事件循环
+                from src.utils.async_utils import async_executor
+
+                processed_results = await async_executor.run_in_thread(
+                    lambda qr=query_result, p=processor: p.process(qr),
+                    timeout=30.0
+                )
 
                 # 获取当前诊断类型（维度）
                 diagnosis_type = query_result.get('diagnosisType', '') or "ORG"
@@ -176,7 +182,6 @@ class AIModelService:
                                 'no_data': True
                             })
                         else:
-                            # 如果不保留占位，就跳过（与旧行为一致）
                             logger.debug(f"跳过无数据板块: origin_index={origin_index}, content_type={content_type}")
 
             if not expanded_tasks:
@@ -503,7 +508,7 @@ class AIModelService:
         # 1. 验证标签完整性
         cur_validate_result = self.validator.validate(cur_content)
         cum_validate_result = self.validator.validate(cum_content)
-        
+
         # 2. 并发修复标签
         async def fix_content(content, template, validate_result):
             if not validate_result['is_valid']:
@@ -518,13 +523,13 @@ class AIModelService:
                     else:
                         logger.error("标签修复失败，已回退！")
             return content
-        
+
         # 并发执行修复任务 - asyncio.gather保证返回顺序与输入顺序一致
         cur_content, cum_content = await asyncio.gather(
             fix_content(cur_content, cur_template, cur_validate_result),
             fix_content(cum_content, cum_template, cum_validate_result)
         )
-        
+
         return cur_content, cum_content, cur_validate_result, cum_validate_result
 
     async def _call_model(self, messages: list) -> Dict:

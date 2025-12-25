@@ -25,29 +25,26 @@ class TaskInfo:
 
 class TaskManager:
     """
-    任务管理器 - 支持任务取消和状态跟踪
-
-    功能：
-    1. 注册和跟踪异步任务
-    2. 支持按 req_id 取消单个任务
-    3. 支持取消所有运行中的任务
-    4. 提供任务状态查询
+    任务管理器 - 支持任务取消和状态跟踪（改进版）
 
     ⭐ 改进：
-    - 取消任务后立即清理（而不是延迟 5 分钟）
-    - 支持同一 req_id 重新提交
-    - 更准确的任务状态转换
+    1. 允许重新提交已完成的任务（使用同一 req_id）
+    2. 自动清理已完成的任务
+    3. 更灵活的任务注册逻辑
     """
 
-    def __init__(self):
+    def __init__(self, cleanup_delay: float = 60.0):
         self.tasks: Dict[str, TaskInfo] = {}  # req_id -> TaskInfo
         self._lock = asyncio.Lock()
+        self.cleanup_delay = cleanup_delay  # 清理延迟（秒）
 
     async def register_task(self, req_id: str, instance_id: str, task: asyncio.Task) -> bool:
         """
         注册一个新任务
 
-        ⭐ 改进：如果旧任务已完成/取消，允许覆盖注册
+        ⭐ 改进：
+        - 如果旧任务已完成/取消/失败，允许覆盖注册
+        - 支持重新提交同一 req_id 的任务
 
         Args:
             req_id: 请求ID（作为任务ID）
@@ -61,10 +58,16 @@ class TaskManager:
             if req_id in self.tasks:
                 old_task = self.tasks[req_id]
 
-                # ⭐ 如果旧任务已完成/取消/失败，允许覆盖
+                # ⭐ 改进：如果旧任务已完成/取消/失败，允许覆盖
                 if old_task.status in ["completed", "cancelled", "failed"]:
                     logger.info(
                         f"旧任务已结束（{old_task.status}），允许重新注册 - req_id: {req_id}"
+                    )
+                    del self.tasks[req_id]
+                elif old_task.task.done():
+                    # ⭐ 如果任务对象本身已完成（即使状态字段还没更新），也允许覆盖
+                    logger.info(
+                        f"旧任务已完成，允许重新注册 - req_id: {req_id}, 状态: {old_task.status}"
                     )
                     del self.tasks[req_id]
                 else:
@@ -92,23 +95,26 @@ class TaskManager:
         """
         创建任务完成回调（工厂函数）
 
-        ⭐ 改进：取消的任务立即清理，完成的任务延迟清理
+        ⭐ 改进：
+        - 取消的任务立即清理
+        - 完成的任务延迟清理（保留查询状态）
+        - 失败的任务立即清理
         """
 
         def callback(task: asyncio.Task):
             try:
                 if task.cancelled():
                     logger.info(f"✅ 任务已被取消（完成） - req_id: {req_id}")
-                    # ⭐ 立即清理取消的任务（不延迟）
+                    # 立即清理取消的任务
                     asyncio.create_task(self._cleanup_task_immediate(req_id))
                 elif task.exception():
                     logger.error(f"❌ 任务执行失败 - req_id: {req_id}, 异常: {task.exception()}")
-                    # 失败的任务也立即清理
+                    # 失败的任务立即清理
                     asyncio.create_task(self._cleanup_task_immediate(req_id))
                 else:
                     logger.info(f"✅ 任务执行完成 - req_id: {req_id}")
-                    # 完成的任务延迟清理（保留状态供查询）
-                    asyncio.create_task(self._cleanup_task_after_delay(req_id, delay=60.0))
+                    # 完成的任务延迟清理
+                    asyncio.create_task(self._cleanup_task_after_delay(req_id, delay=self.cleanup_delay))
             except Exception as e:
                 logger.error(f"处理任务完成回调异常 - req_id: {req_id}, 错误: {e}")
 
@@ -131,7 +137,7 @@ class TaskManager:
                 elif task_info.task.exception():
                     task_info.status = "failed"
 
-                # ⭐ 立即删除，允许重新提交
+                # 立即删除，允许重新提交
                 del self.tasks[req_id]
                 logger.info(f"任务已立即清理 - req_id: {req_id}, 状态: {task_info.status}")
 
@@ -139,11 +145,11 @@ class TaskManager:
         """
         延迟清理已完成的任务
 
-        ⭐ 改进：延迟时间从 300 秒减少到 60 秒
+        ⭐ 改进：延迟时间可配置（默认 60 秒）
 
         Args:
             req_id: 请求ID
-            delay: 延迟清理时间（秒），默认 60 秒
+            delay: 延迟清理时间（秒）
         """
         try:
             await asyncio.sleep(delay)
@@ -312,4 +318,4 @@ class TaskManager:
 
 
 # 全局任务管理器实例
-task_manager = TaskManager()
+task_manager = TaskManager(cleanup_delay=60.0)  # 已完成任务 60 秒后清理

@@ -22,10 +22,25 @@ class AsyncMySQLDataConnector:
         self.env = env or self.settings.environment
         self.db_type = db_type  # "intermediate_db" 或 "data_db"
         self._connection_params = None
+        self._pool_initialized = False  # 标记池是否已初始化
 
     async def initialize_pool(self, min_size: int = 1, max_size: int = 10) -> bool:
-        """初始化连接池"""
+        """初始化连接池（⭐ 改进：支持重复初始化）"""
         try:
+            # ⭐ 改进：如果已初始化且池有效，直接返回
+            if self._pool_initialized and self.pool and not self.pool.closed:
+                logger.debug(f"连接池已初始化 - 类型: {self.db_type}, 环境: {self.env}")
+                return True
+
+            # 如果旧池存在且未关闭，先关闭
+            if self.pool and not self.pool.closed:
+                try:
+                    self.pool.close()
+                    await self.pool.wait_closed()
+                    logger.info(f"已关闭旧连接池 - 类型: {self.db_type}")
+                except Exception as e:
+                    logger.warning(f"关闭旧连接池失败: {e}")
+
             db_config = self.settings.get_database_config(self.db_type, self.env)
 
             self._connection_params = {
@@ -42,26 +57,46 @@ class AsyncMySQLDataConnector:
             }
 
             self.pool = await aiomysql.create_pool(**self._connection_params)
+            self._pool_initialized = True
+
             logger.info(f"异步数据库连接池初始化成功 - 类型: {self.db_type}, 环境: {self.env}")
             return True
 
         except Exception as e:
             logger.error(f"异步数据库连接池初始化失败 - 类型: {self.db_type}, 错误: {e}")
+            self._pool_initialized = False
             return False
+
+    async def _ensure_pool(self) -> bool:
+        """确保连接池已初始化且有效"""
+        if not self._pool_initialized or not self.pool or self.pool.closed:
+            logger.warning(f"连接池无效，重新初始化 - 类型: {self.db_type}")
+            return await self.initialize_pool()
+        return True
 
     @asynccontextmanager
     async def get_connection(self):
-        """获取数据库连接上下文管理器"""
-        if not self.pool:
-            await self.initialize_pool()
+        """获取数据库连接上下文管理器（⭐ 改进：自动重新初始化池）"""
+        # 确保池有效
+        if not await self._ensure_pool():
+            raise RuntimeError(f"无法初始化连接池 - 类型: {self.db_type}")
 
         conn = None
         try:
-            conn = await self.pool.acquire()
+            conn = await asyncio.wait_for(self.pool.acquire(), timeout=5.0)
             yield conn
+        except asyncio.TimeoutError:
+            logger.error(f"获取数据库连接超时 - 类型: {self.db_type}")
+            raise
+        except Exception as e:
+            logger.error(f"获取数据库连接异常 - 类型: {self.db_type}, 错误: {e}")
+            raise
         finally:
             if conn:
-                self.pool.release(conn)
+                try:
+                    self.pool.release(conn)
+                except Exception as e:
+                    logger.debug(f"释放连接异常: {e}")
 
     @asynccontextmanager
     async def get_cursor(self):
@@ -79,12 +114,12 @@ class AsyncMySQLDataConnector:
                             timeout: Optional[float] = None) -> Dict[str, Any]:
         """
         异步执行SQL查询
-        
+
         Args:
             sql: SQL查询语句
             params: 查询参数
             timeout: 查询超时时间（秒）
-            
+
         Returns:
             查询结果字典
         """
@@ -143,12 +178,12 @@ class AsyncMySQLDataConnector:
                              timeout: Optional[float] = None) -> Dict[str, Any]:
         """
         异步执行更新操作（INSERT/UPDATE/DELETE）
-        
+
         Args:
             sql: SQL语句
             params: 参数
             timeout: 超时时间
-            
+
         Returns:
             更新结果字典
         """
@@ -213,10 +248,14 @@ class AsyncMySQLDataConnector:
 
     async def close(self):
         """关闭连接池"""
-        if self.pool:
-            self.pool.close()
-            await self.pool.wait_closed()
-            logger.info(f"异步数据库连接池已关闭 - 类型: {self.db_type}")
+        if self.pool and not self.pool.closed:
+            try:
+                self.pool.close()
+                await self.pool.wait_closed()
+                self._pool_initialized = False
+                logger.info(f"异步数据库连接池已关闭 - 类型: {self.db_type}")
+            except Exception as e:
+                logger.error(f"关闭连接池异常: {e}")
 
     async def __aenter__(self):
         """异步上下文管理器入口"""
@@ -230,16 +269,25 @@ class AsyncMySQLDataConnector:
 
 # 全局连接池实例（按数据库类型）
 _async_pools = {}
+_pool_lock = asyncio.Lock()
 
 
 async def get_async_db_connector(db_type: str = "data_db", env: str = None) -> AsyncMySQLDataConnector:
-    """获取异步数据库连接器（单例模式）"""
+    """获取异步数据库连接器（单例模式 + 线程安全）"""
     key = f"{db_type}:{env or 'default'}"
 
-    if key not in _async_pools:
-        connector = AsyncMySQLDataConnector(db_type, env)
-        await connector.initialize_pool()
-        _async_pools[key] = connector
+    # 使用锁确保线程安全
+    async with _pool_lock:
+        if key not in _async_pools:
+            connector = AsyncMySQLDataConnector(db_type, env)
+            await connector.initialize_pool()
+            _async_pools[key] = connector
+
+        # ⭐ 改进：确保池有效
+        connector = _async_pools[key]
+        if not await connector._ensure_pool():
+            logger.warning(f"连接池无效，重新初始化 - key: {key}")
+            await connector.initialize_pool()
 
     return _async_pools[key]
 
