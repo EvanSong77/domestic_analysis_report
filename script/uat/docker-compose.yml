@@ -1,14 +1,14 @@
 services:
   server:
-    image: harbor-itdm.dahuatech.com/llms/domestic-analysis-report:uat-1.3.5-1218
-    command: uvicorn app:app --host 0.0.0.0 --port 80 --workers 4
+    image: harbor-itdm.dahuatech.com/llms/domestic-analysis-report:uat-1.3.6-1224
+    command: uvicorn app:app --host 0.0.0.0 --port 80 --workers 1
     environment:
       - APP_ENVIRONMENT=uat
       - APP_MODEL=qwen3-32b
       - APP_LOG_LEVEL=info
       - APP_MODEL_CONCURRENT=8
     deploy:
-      replicas: 2
+      replicas: 1
       placement:
         constraints: [node.role == manager]
       restart_policy:

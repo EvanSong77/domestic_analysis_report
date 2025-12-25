@@ -54,6 +54,11 @@ class DistributedConcurrencyControl:
     4. 详细的日志和监控指标
     5. 自动清理过期实例
     6. 原子性操作确保一致性
+
+    ⭐ 修复：
+    - 改进了 release_slot 的容错性
+    - 避免多次释放同一个槽位
+    - 改进了日志输出的准确性
     """
 
     def __init__(self, config=None, max_total_concurrent: int = None, lock_file_path: str = None):
@@ -101,7 +106,7 @@ class DistributedConcurrencyControl:
             if os.path.exists(self.lock_file_path):
                 os.remove(self.lock_file_path)
                 logger.info(f"删除旧锁文件: {self.lock_file_path}")
-            
+
             # 创建新的锁文件
             with open(self.lock_file_path, 'w') as f:
                 json.dump({
@@ -415,6 +420,8 @@ class DistributedConcurrencyControl:
         """
         释放一个并发槽位
 
+        ⭐ 修复：更好的容错性和日志记录
+
         Args:
             instance_id: 实例标识
 
@@ -430,43 +437,70 @@ class DistributedConcurrencyControl:
             current_concurrent = lock_data.get('current_concurrent', 0)
             active_instances = lock_data.get('active_instances', {})
 
-            if instance_id in active_instances:
-                instance_info = active_instances[instance_id]
-                instance_concurrent = instance_info.get('concurrent_count', 0)
+            # ⭐ 改进1：检查实例是否存在
+            if instance_id not in active_instances:
+                # 实例不存在可能是因为：
+                # 1. 已被清理（超时）
+                # 2. 重复释放
+                # 3. 实例ID不匹配
+                # 这在分布式环境中是可以接受的
+                logger.debug(
+                    f"实例未找到（可能已被清理） - instance_id: {instance_id}, "
+                    f"当前活跃实例数: {len(active_instances)}"
+                )
+                return False
 
-                if instance_concurrent > 0:
-                    # 释放槽位
-                    lock_data['current_concurrent'] = max(0, current_concurrent - 1)
-                    instance_info['concurrent_count'] = max(0, instance_concurrent - 1)
-                    instance_info['last_heartbeat'] = time.time()
+            instance_info = active_instances[instance_id]
+            instance_concurrent = instance_info.get('concurrent_count', 0)
 
-                    # 如果实例没有活跃槽位，清理实例记录
-                    if instance_info['concurrent_count'] == 0:
-                        del active_instances[instance_id]
-                        logger.info(f"实例记录已清理 - instance_id: {instance_id}")
+            # ⭐ 改进2：检查槽位计数是否有效
+            if instance_concurrent <= 0:
+                logger.warning(
+                    f"实例槽位计数异常 - instance_id: {instance_id}, "
+                    f"concurrent_count: {instance_concurrent}，清理该实例"
+                )
+                # 清理这个异常的实例
+                del active_instances[instance_id]
+                self._write_lock_data(lock_data)
+                return False
 
-                    # 保存数据
-                    if self._write_lock_data(lock_data):
-                        logger.info(
-                            f"释放并发槽位成功 - instance_id: {instance_id}, "
-                            f"当前: {lock_data['current_concurrent']}/{lock_data.get('max_concurrent')}"
-                        )
-                        return True
-                else:
-                    logger.warning(f"实例没有活跃槽位 - instance_id: {instance_id}")
+            # ⭐ 改进3：原子性更新数据
+            lock_data['current_concurrent'] = max(0, current_concurrent - 1)
+            instance_info['concurrent_count'] = instance_concurrent - 1
+            instance_info['last_heartbeat'] = time.time()
+
+            # 如果实例没有活跃槽位，清理实例记录
+            if instance_info['concurrent_count'] == 0:
+                del active_instances[instance_id]
+                logger.debug(f"实例记录已清理 - instance_id: {instance_id}")
+
+            # 保存数据
+            if self._write_lock_data(lock_data):
+                logger.info(
+                    f"✅ 释放并发槽位成功 - instance_id: {instance_id}, "
+                    f"当前: {lock_data['current_concurrent']}/{lock_data.get('max_concurrent')}"
+                )
+                return True
             else:
-                logger.warning(f"实例未找到 - instance_id: {instance_id}")
+                logger.error(
+                    f"保存锁文件失败（槽位释放可能不完整） - instance_id: {instance_id}"
+                )
+                return False
 
         except Exception as e:
-            logger.error(f"释放并发槽位异常 - instance_id: {instance_id}, 错误: {e}", exc_info=True)
+            logger.error(
+                f"释放并发槽位异常 - instance_id: {instance_id}, 错误: {e}",
+                exc_info=True
+            )
+            return False
         finally:
             self._release_file_lock()
-
-        return False
 
     async def heartbeat(self, instance_id: str) -> bool:
         """
         发送心跳，保持实例活跃状态
+
+        ⭐ 改进：确保时间戳正确更新，防止实例被清理
 
         Args:
             instance_id: 实例标识
@@ -475,6 +509,7 @@ class DistributedConcurrencyControl:
             bool: 心跳是否成功
         """
         if not self._acquire_file_lock(timeout=2.0):
+            logger.warning(f"无法获取文件锁，心跳失败 - instance_id: {instance_id}")
             return False
 
         try:
@@ -482,10 +517,18 @@ class DistributedConcurrencyControl:
             active_instances = lock_data.get('active_instances', {})
 
             if instance_id in active_instances:
+                # ⭐ 更新最后心跳时间
                 active_instances[instance_id]['last_heartbeat'] = time.time()
-                return self._write_lock_data(lock_data)
+
+                # 保存数据
+                if self._write_lock_data(lock_data):
+                    logger.debug(f"💓 心跳更新成功 - instance_id: {instance_id}")
+                    return True
+                else:
+                    logger.error(f"保存心跳数据失败 - instance_id: {instance_id}")
+                    return False
             else:
-                logger.debug(f"实例不在活跃列表中 - instance_id: {instance_id}")
+                logger.debug(f"实例未找到（心跳失败） - instance_id: {instance_id}")
                 return False
 
         except Exception as e:

@@ -18,18 +18,18 @@ class XMLTagValidator:
 
     def __init__(self, environment):
         self.tag_pattern = re.compile(r'</?([a-zA-Z_][a-zA-Z0-9_]*)>')
-        self.model_name = "Deepseek-V3"
-        self.api_key = "pk-99d173c0-6c1b-476a-85a5-2d478a2436f6"
+        self.model_name = "DeepSeek-V3.2"
+        self.api_key = "k0FG94TBecKxBgip4BQR2jyBO6x8pb2s"
 
         # 新增：定义只能出现一对的标签
         self.single_pair_tags = {'current', 'accumulate'}
 
         if environment == "test":
-            self.base_url = "http://10.1.110.2:8888/deepseek-v3/v1"
+            self.base_url = "https://aimarket.dahuatech.com/it/dpsk-v32/v1"
         elif environment == "uat":
-            self.base_url = "http://10.1.110.2:31010/deepseek-v3/v1"
+            self.base_url = "https://aimarket.dahuatech.com/it/dpsk-v32/v1"
         else:
-            self.base_url = "http://10.1.110.2:11010/deepseek-v3/v1"
+            self.base_url = "https://aimarket.dahuatech.com/it/dpsk-v32/v1"
 
     def extract_tags(self, text: str) -> List[Dict]:
         """提取文本中的所有标签"""

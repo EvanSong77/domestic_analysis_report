@@ -60,6 +60,16 @@ class DataTemplateProcessor:
         base_sql += " AND DATA_TYPE = %(data_type)s"
         con_params['data_type'] = data_type
 
+        # DISTRIBUTION_TYPE
+        if params.get('distribution_type'):
+            base_sql += " AND DISTRIBUTION_TYPE = %(distribution_type)s"
+            con_params['distribution_type'] = params['distribution_type']
+
+        # IT_INCLUDE_TYPE
+        if params.get('IT_include_type'):
+            base_sql += " AND IT_INCLUDE_TYPE = %(IT_include_type)s"
+            con_params['IT_include_type'] = params['IT_include_type']
+
         logger.debug(f"查询 {level}-{diagnosis_type} params: {con_params}")
         return sql.format(base_sql), con_params
 

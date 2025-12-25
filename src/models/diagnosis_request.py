@@ -15,6 +15,8 @@ class DiagnosisRequest(BaseModel):
     diagnosisType: str = Field("", description="分析类型")
     provinceName: str = Field("", description="省份")
     officeLv2Name: str = Field("", description="二级办")
+    distribution_type: str = Field("", description="分销类型")
+    IT_include_type: str = Field("", description="IT包含类型")
 
     currentPage: Optional[int] = Field(None, description="当前页码")
     pageSize: Optional[int] = Field(None, description="每页条数")

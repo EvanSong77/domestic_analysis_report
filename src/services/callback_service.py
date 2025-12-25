@@ -58,6 +58,8 @@ class CallbackService:
                         "diagnosisType": params.get('diagnosisType', request_data.get("diagnosisType", "")),
                         "provinceName": params.get('provinceName', request_data.get("provinceName", "")),
                         "officeLv2Name": params.get('officeLv2Name', request_data.get("officeLv2Name", "")),
+                        "distribution_type": params.get('distribution_type', request_data.get("distribution_type", "")),
+                        "IT_include_type": params.get('IT_include_type', request_data.get("IT_include_type", "")),
                         "diagnosisResult": report_result_item.get('report_content', '')
                     }
 
@@ -76,6 +78,8 @@ class CallbackService:
                         "diagnosisType": request_data.get("diagnosisType", ""),
                         "provinceName": request_data.get("provinceName", ""),
                         "officeLv2Name": request_data.get("officeLv2Name", ""),
+                        "distribution_type": request_data.get("distribution_type", ""),
+                        "IT_include_type": request_data.get("IT_include_type", ""),
                         "diagnosisResult": report_result.get("report_content", "")
                     }], ensure_ascii=False)
                 }
