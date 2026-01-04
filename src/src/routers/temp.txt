@@ -1,0 +1,141 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/10/16 13:54
+# @Author  : EvanSong
+
+from fastapi import APIRouter, Depends
+
+from src.config.config import get_settings
+from src.models.diagnosis_request import DiagnosisRequest
+from src.models.diagnosis_response import StandardResponse
+from src.services import ResultService
+from src.services.ai_model_service import AIModelService
+from src.services.callback_service import CallbackService
+from src.services.data_query_service import DataQueryService
+from src.utils import log_utils
+from src.utils.bearer import verify_token
+
+logger = log_utils.logger
+Report_router = APIRouter()
+settings = get_settings()
+
+
+@Report_router.post("/diagnosis", dependencies=[Depends(verify_token)])
+async def generate_diagnosis_report(
+        request: DiagnosisRequest
+):
+    """
+    经营异常诊断结果计算
+
+    根据提供的参数查询数据，使用大模型生成诊断分析报告
+    """
+    try:
+        logger.info(f"开始生成诊断报告，请求ID: {request.reqId}")
+        # 1. 查询数据
+        data_service = DataQueryService()
+        data_result = data_service.get_diagnosis_data(request)
+
+        if data_result['status'] != 'success':
+            return StandardResponse.error(500, f"数据查询失败: {data_result['message']}")
+
+        logger.info(f"数据查询成功")
+
+        # 2. 调用大模型生成报告（现在使用data/prompts目录的提示词）
+        ai_service = AIModelService()
+        report_result = await ai_service.generate_diagnosis_report(data_result['data'])
+
+        if report_result['status'] != 'success':
+            return StandardResponse.error(500, f"报告生成失败: {report_result['message']}")
+
+        return_data_format = {
+            "period": request.period,
+            "diagnosisType": request.diagnosisType,
+            "provinceName": request.provinceName,
+            "officeLv2Name": request.officeLv2Name,
+            "currentPage": request.currentPage,
+            "pageSize": request.pageSize
+        }
+
+        # 3. 保存结果到中间表
+        result_service = ResultService()
+
+        # 处理单个或多个报告结果
+        if 'report_contents' in report_result['data']:
+            # 多个报告的情况 - 保存为单个记录，包含所有报告内容和实际参数
+            save_result = result_service.save_diagnosis_result(
+                request.reqId,  # 直接使用request.reqId
+                return_data_format,
+                {
+                    'report_contents': report_result['data']['report_contents'],
+                    'report_results': report_result['data']['report_results'],
+                    'actual_params': report_result['data']['actual_params'],
+                    'usage': report_result['data']['usage'],
+                    'prompt_tokens': report_result['data']['prompt_tokens'],
+                    'completion_tokens': report_result['data']['completion_tokens'],
+                    'report_count': len(report_result['data']['report_contents'])
+                }
+            )
+        else:
+            # 单个报告的情况
+            save_result = result_service.save_diagnosis_result(
+                request.reqId,
+                return_data_format,
+                report_result['data']
+            )
+
+        if save_result['status'] != 'success':
+            logger.error(f"结果保存失败 - 请求ID: {request.reqId}, 错误: {save_result['message']}")
+            # 结果保存失败应返回错误，因为这是核心业务流程
+            return StandardResponse.error(500, f"结果保存失败: {save_result['message']}")
+
+        logger.info(f"结果保存成功 - 请求ID: {request.reqId}")
+
+        # 4. 发送回调
+        callback_service = CallbackService()
+
+        # 根据报告类型构建回调数据
+        if 'report_contents' in report_result['data']:
+            # 多个报告的情况 - 发送合并的回调
+            callback_result = await callback_service.send_callback(
+                request.reqId,
+                return_data_format,
+                {
+                    'report_contents': report_result['data']['report_contents'],
+                    'report_results': report_result['data']['report_results'],
+                    'actual_params': report_result['data']['actual_params']
+                }
+            )
+        else:
+            # 单个报告的情况
+            callback_result = await callback_service.send_callback(
+                request.reqId,
+                return_data_format,
+                report_result['data']
+            )
+
+        if callback_result['status'] != 'success':
+            logger.warning(f"回调失败 - 请求ID: {request.reqId}, 错误: {callback_result['message']}")
+
+        # 5. 返回成功响应
+        if 'report_contents' in report_result['data']:
+            # 多个报告的情况
+            return StandardResponse.success({
+                'reqId': request.reqId,
+                'report_contents': report_result['data']['report_contents'],
+                'report_count': len(report_result['data']['report_contents']),
+                'usage': report_result['data']['usage'],
+                'save_status': 'success',
+                'callback_status': callback_result['status'] if callback_result['status'] == 'success' else 'error'
+            })
+        else:
+            # 单个报告的情况
+            return StandardResponse.success({
+                'reqId': request.reqId,
+                'report_content': report_result['data']['report_content'],
+                'usage': report_result['data']['usage'],
+                'save_status': save_result['status'],
+                'callback_status': callback_result['status'] if callback_result['status'] == 'success' else 'error'
+            })
+
+    except Exception as e:
+        logger.error(f"生成诊断报告异常: {str(e)}")
+        return StandardResponse.error(500, f"系统异常: {str(e)}")
