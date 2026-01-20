@@ -1,0 +1,39 @@
+# ===========================================
+# 国内分析报告系统依赖配置
+# ===========================================
+
+# ========== 核心依赖 (必需) ==========
+
+# Web框架相关
+uvicorn==0.34.0
+fastapi==0.115.11
+fastapi-cli==0.0.7
+requests==2.32.3
+aiohttp==3.11.13
+nest_asyncio==1.6.0
+openai==1.66.3
+streamlit==1.51.0
+
+# 数据验证和配置管理
+pydantic==2.5.0
+pydantic-settings==2.1.0
+pyyaml==6.0.1
+
+# 数据库驱动
+pymysql==1.1.2
+aiomysql==0.2.0  # 异步MySQL驱动
+
+# HTTP客户端
+httpx==0.27.0
+
+# 日志管理
+coloredlogs==15.0.1
+
+# 环境变量管理
+python-dotenv==1.0.0
+
+# Celery 相关
+celery==5.4.0
+redis==5.2.1
+kombu==5.4.2
+flower==2.0.1

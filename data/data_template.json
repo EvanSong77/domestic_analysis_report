@@ -1,0 +1,3968 @@
+{
+  "TOTAL": {
+    "ORG": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1'",
+          "template": "{cur_period}，省份未达成毛利预测数量: {gpm_unachieve_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "gpm_unachieve_count": {
+              "operation": "count",
+              "source_key": "gpm_task_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_ACHIEVE_FLAG = '1'",
+          "template": "省份高于毛利预测1个点以上数量: {gpm_mom_count}",
+          "fields": {
+            "gpm_mom_count": {
+              "operation": "count",
+              "source_key": "gpm_achieve_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC",
+          "template": "毛利预算未达成省份: {gpm_unachieve_pro}",
+          "fields": {
+            "gpm_unachieve_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_gap",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_yoy_flag = '1' ORDER BY gpm_yoy ASC",
+          "template": "毛利同比下降>1%省份: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_mom_flag = '1' ORDER BY gpm_mom ASC",
+          "template": "毛利环比下降>1%省份: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_decline_flag = '1' ORDER BY ((gpm-gpm_m)-(gpm_m-gpm_mm)) ASC",
+          "template": "毛利连续2月下降省份: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND special_rate_flag = '1' ORDER BY special_rate DESC",
+          "template": "网线&硬盘占比>20%省份: {special_rate_pro}",
+          "fields": {
+            "special_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "special_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '工程' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "工程项目低毛利<prj_list>TOP</prj_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details} ",
+          "condition": "fields.get('project_details')",
+          "non_message": "工程异常项目：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv5"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prj_list_sale>{value}({key})</prj_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prj_list_cust>{value}({key})</prj_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prj_detail>\nprj_detail_prov={name}\n{v0}(<contract>{v1}</contract>)\nprj_detail_sale={v2}\n毛利率{v3}\n</prj_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '产品' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "产品合同低毛利<prd_list>TOP</prd_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "产品异常合同：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv5"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prd_list_sale>{value}({key})</prd_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prd_list_cust>{value}({key})</prd_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prd_detail>\nprd_detail_prov={name}\n{v0}(<contract>{v1}</contract>)\nprd_detail_sale={v2}\n毛利率{v3}\n</prd_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC",
+          "template": "毛利预算未达成省份: {gpm_unachieve_pro}",
+          "fields": {
+            "gpm_unachieve_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_gap",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_yoy_flag = '1' ORDER BY gpm_yoy ASC",
+          "template": "累计毛利同比下降>1%省份: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_mom_flag = '1' ORDER BY gpm_mom ASC",
+          "template": "累计毛利环比下降>1%省份: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_decline_flag = '1' ORDER BY ((gpm-gpm_m)-(gpm_m-gpm_mm)) ASC",
+          "template": "累计毛利连续2月下降省份: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND special_rate_flag = '1' ORDER BY special_rate DESC",
+          "template": "网线&硬盘累计收入占比>20%省份: {special_rate_pro}",
+          "fields": {
+            "special_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "special_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '工程' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "工程项目低毛利<prj_list>TOP</prj_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "工程异常项目：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv5"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prj_list_sale>{value}({key})</prj_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prj_list_cust>{value}({key})</prj_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prj_detail>\nprj_detail_prov={name}\n{v0}(<contract>{v1}</contract>)\nprj_detail_sale={v2}\n累计毛利率{v3}\n</prj_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '产品' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "产品合同低毛利<prd_list>TOP</prd_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "产品异常合同：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv5"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prj_list_sale>{value}({key})</prj_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prj_list_cust>{value}({key})</prj_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prd_detail>\nprd_detail_prov={name}\n{v0}(<contract>{v1}</contract>)\nprd_detail_sale={v2}\n累计毛利率{v3}\n</prd_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "CHAN": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_RATE_FLAG = '1'",
+          "template": "{cur_period}，主航道收入占比下降省份数量: {channel_rate_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "channel_rate_count": {
+              "operation": "count",
+              "source_key": "channel_rate_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_GPM_FLAG = '1'",
+          "template": "主航道毛利下降省份数量: {channel_gpm_count}",
+          "fields": {
+            "channel_gpm_count": {
+              "operation": "count",
+              "source_key": "channel_gpm_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_BASELINE_FLAG = 1 ORDER BY GPM ASC",
+          "template": "主航道毛利<50%省份: {gpm_pro}",
+          "fields": {
+            "gpm_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC",
+          "template": "主航道毛利同比下降>1%省份: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC",
+          "template": "主航道毛利环比下降>1%省份: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = '1' ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC",
+          "template": "主航道毛利连续2月下降省份: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_BASELINE_FLAG = 1 ORDER BY CHANNEL_RATE ASC",
+          "template": "主航道收入占比<50%省份: {channel_rate_pro}",
+          "fields": {
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道收入占比同比下降>1%省份: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道收入占比环比下降>1%省份: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道收入占比连续2月下降省份: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC LIMIT 5",
+          "template": "客户主航道占比<50%且网线硬盘指定外购占比>10% <cust_list>TOP</cust_list>，以下所示TOP5：其中cust_list_prov={region_influence}，客户{customers}，影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "异常客户：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common",
+              "name_key": "assess_center_name_lv5"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "channel_rate",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "<cust_detail>\ncust_detail_prov={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3}，主航道占比{v4}，网线硬盘指定外购占比{v5}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_BASELINE_FLAG = 1 ORDER BY GPM ASC",
+          "template": "主航道累计毛利<50%省份: {gpm_pro}",
+          "fields": {
+            "gpm_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC",
+          "template": "主航道累计毛利同比下降>1%省份: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC",
+          "template": "主航道累计毛利环比下降>1%省份: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = '1' ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC",
+          "template": "主航道累计毛利连续2月下降省份: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_BASELINE_FLAG = 1 ORDER BY CHANNEL_RATE ASC",
+          "template": "主航道累计收入占比<50%省份: {channel_rate_pro}",
+          "fields": {
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道累计收入占比同比下降>1%省份: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道累计收入占比环比下降>1%省份: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv5",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道累计收入占比连续2月下降省份: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户主航道累计占比<50%且网线硬盘指定外购累计占比>10% <cust_list>TOP</cust_list>，以下所示TOP5：其中{region_influence}，客户{customers}，影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "异常客户：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common",
+              "name_key": "assess_center_name_lv5"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv5",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv5",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "channel_rate",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "<cust_detail>\ncust_detail_prov={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3}，主航道累计占比{v4}，网线硬盘指定外购累计占比{v5}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "IND": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = 1 ",
+          "use_data_type": "ACC",
+          "template": "{cur_period}，较上月，行业未达成毛利基线数量: {gpm_task_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "gpm_task_count": {
+              "operation": "count",
+              "source_key": "gpm_task_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_ACHIEVE_FLAG = 1 ",
+          "use_data_type": "ACC",
+          "template": "行业高于毛利基线1个点以上数量: {gpm_achieve_count}",
+          "fields": {
+            "gpm_achieve_count": {
+              "operation": "count",
+              "source_key": "gpm_achieve_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "毛利同比下降>1%行业: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "毛利环比下降>1%行业: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "毛利连续2月下降行业: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道收入占比同比下降>1%行业: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道收入占比环比下降>1%行业: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道收入占比连续2月下降行业: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_AVERAGE_FLAG = 1 ORDER BY CHANNEL_RATE ASC;",
+          "template": "主航道收入占比低于国内均值({incomes_rate_ave})行业: {channel_rate_pro}",
+          "fields": {
+            "incomes_rate_ave": {
+              "operation": "extract_avg",
+              "name_key": "channel_average",
+              "format": "percentage"
+            },
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "行业客户低毛利异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_ind1>{most_common_industry}</cust_list_ind1>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "行业异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "industry_lv1_name"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "industry_lv1_name",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "channel_rate"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_ind1={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3:.1%}、收入<amount>{v4:.2f}</amount>、主航道占比{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC",
+          "template": "毛利预算未达标行业: {gpm_task_pro}",
+          "fields": {
+            "gpm_task_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "累计毛利同比下降>1%行业: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "累计毛利环比下降>1%行业: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "累计毛利连续2月下降行业: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道累计收入占比同比下降>1%行业: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道累计收入占比环比下降>1%行业: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道累计收入占比连续2月下降行业: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_AVERAGE_FLAG = 1 ORDER BY CHANNEL_RATE ASC;",
+          "template": "主航道累计收入占比低于国内均值({incomes_rate_ave})行业: {channel_rate_pro}",
+          "fields": {
+            "incomes_rate_ave": {
+              "operation": "extract_avg",
+              "name_key": "channel_average",
+              "format": "percentage"
+            },
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "行业客户低毛利异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_ind1>{most_common_industry}</cust_list_ind1>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "行业异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "industry_lv1_name"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "industry_lv1_name",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "channel_rate"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_ind1={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3:.1%}、累计收入<amount>{v4:.2f}</amount>、主航道累计占比{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "PROD": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = 1 ;",
+          "use_data_type": "ACC",
+          "template": "{cur_period}，产品线未达成毛利基线数量: {gpm_task_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "gpm_task_count": {
+              "operation": "count",
+              "source_key": "gpm_task_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_ACHIEVE_FLAG = 1 ;",
+          "use_data_type": "ACC",
+          "template": "产品线高于毛利基线1个点以上数量: {gpm_achieve_count}",
+          "fields": {
+            "gpm_achieve_count": {
+              "operation": "count",
+              "source_key": "gpm_achieve_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "毛利同比下降>1%产品线: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "毛利环比下降>1%产品线: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "毛利连续2月下降产品线: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_YOY_FLAG = 1 ORDER BY DISCOUNT_YOY ASC limit 20",
+          "template": "折扣同比下降>1%产品线: {discount_yoy_pro}",
+          "fields": {
+            "discount_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_MOM_FLAG = 1 ORDER BY DISCOUNT_MOM ASC limit 20",
+          "template": "折扣环比下降>1%产品线: {discount_mom_pro}",
+          "fields": {
+            "discount_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_DECLINE_FLAG = 1 ORDER BY ((DISCOUNT-DISCOUNT_M)-(DISCOUNT_M-DISCOUNT_MM)) ASC limit 20;",
+          "template": "折扣连续2月下降产品线: {discount_decline_pro}",
+          "fields": {
+            "discount_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "discount_mm",
+                "discount_m",
+                "discount"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户低毛利产品线异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_prd2>{most_common_industry}</cust_list_prd2>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "产品线异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "product_line_lv2_inland_report"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "product_line_lv2_inland_report",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "discount_total"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_prd2={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3:.1%}、收入<amount>{v4:.2f}</amount>、折扣{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC limit 20",
+          "template": "毛利预算未达标产品线: {gpm_task_pro}",
+          "fields": {
+            "gpm_task_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "累计毛利同比下降>1%产品线: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "累计毛利环比下降>1%产品线: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "累计毛利连续2月下降产品线: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_YOY_FLAG = 1 ORDER BY DISCOUNT_YOY ASC limit 20",
+          "template": "累计折扣同比下降>1%产品线: {discount_yoy_pro}",
+          "fields": {
+            "discount_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_MOM_FLAG = 1 ORDER BY DISCOUNT_MOM ASC limit 20",
+          "template": "累计折扣环比下降>1%产品线: {discount_mom_pro}",
+          "fields": {
+            "discount_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_DECLINE_FLAG = 1 ORDER BY ((DISCOUNT-DISCOUNT_M)-(DISCOUNT_M-DISCOUNT_MM)) ASC limit 20;",
+          "template": "累计折扣连续2月下降产品线: {discount_decline_pro}",
+          "fields": {
+            "discount_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "discount_mm",
+                "discount_m",
+                "discount"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户低毛利产品线异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_prd2>{most_common_industry}</cust_list_prd2>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "产品线异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "product_line_lv2_inland_report"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "product_line_lv2_inland_report",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "discount_total"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_prd2={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3:.1%}、累计收入<amount>{v4:.2f}</amount>、累计折扣{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    }
+  },
+  "PROVINCE": {
+    "ORG": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1'",
+          "template": "{cur_period}，二级办未达成毛利预测数量: {gpm_unachieve_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "gpm_unachieve_count": {
+              "operation": "count",
+              "source_key": "gpm_task_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_ACHIEVE_FLAG = '1'",
+          "template": "二级办高于毛利预测1个点以上数量: {gpm_mom_count}",
+          "fields": {
+            "gpm_mom_count": {
+              "operation": "count",
+              "source_key": "gpm_achieve_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC",
+          "template": "毛利预测未达成二级办: {gpm_unachieve_pro}",
+          "fields": {
+            "gpm_unachieve_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_gap",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_yoy_flag = '1' ORDER BY gpm_yoy ASC",
+          "template": "毛利同比下降>1%二级办: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_mom_flag = '1' ORDER BY gpm_mom ASC",
+          "template": "毛利环比下降>1%二级办: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_decline_flag = '1' ORDER BY ((gpm-gpm_m)-(gpm_m-gpm_mm)) ASC",
+          "template": "毛利连续2月下降二级办: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND special_rate_flag = '1' ORDER BY special_rate DESC",
+          "template": "网线&硬盘占比>20%二级办: {special_rate_pro}",
+          "fields": {
+            "special_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "special_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '工程' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "工程项目低毛利<prj_list>TOP</prj_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "工程异常项目：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv6"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prj_list_sale>{value}({key})</prj_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prj_list_cust>{value}({key})</prj_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prj_detail>\nprj_detail_offi={name}\n{v0}(<contract>{v1}</contract>)\nprj_detail_sale={v2}\n毛利率{v3}\n</prj_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '产品' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "产品合同低毛利<prd_list>TOP</prd_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "产品异常合同：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv6"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prd_list_sale>{value}({key})</prd_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prd_list_cust>{value}({key})</prd_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prd_detail>\nprd_detail_offi={name}\n{v0}(<contract>{v1}</contract>)\nprd_detail_sale={v2}\n毛利率{v3}\n</prd_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC",
+          "template": "毛利预算未达成二级办: {gpm_unachieve_pro}",
+          "fields": {
+            "gpm_unachieve_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_gap",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_yoy_flag = '1' ORDER BY gpm_yoy ASC",
+          "template": "累计毛利同比下降>1%二级办: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_mom_flag = '1' ORDER BY gpm_mom ASC",
+          "template": "累计毛利环比下降>1%二级办: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_decline_flag = '1' ORDER BY ((gpm-gpm_m)-(gpm_m-gpm_mm)) ASC",
+          "template": "累计毛利连续2月下降二级办: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND special_rate_flag = '1' ORDER BY special_rate DESC",
+          "template": "网线&硬盘累计收入占比>20%二级办: {special_rate_pro}",
+          "fields": {
+            "special_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "special_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '工程' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "工程项目低毛利<prj_list>TOP</prj_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "工程异常项目：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv6"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prj_list_sale>{value}({key})</prj_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prj_list_cust>{value}({key})</prj_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prj_detail>\nprj_detail_offi={name}\n{v0}(<contract>{v1}</contract>)\nprj_detail_sale={v2}\n累计毛利率{v3}\n</prj_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '产品' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "产品合同低毛利<prd_list>TOP</prd_list>，以下所示TOP5：其中{region_influence}，业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "产品异常合同：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common_with_count",
+              "name_key": "assess_center_name_lv6"
+            },
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prd_list_sale>{value}({key})</prd_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prd_list_cust>{value}({key})</prd_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prd_detail>\nprd_detail_offi={name}\n{v0}(<contract>{v1}</contract>)\nprd_detail_sale={v2}\n累计毛利率{v3}\n</prd_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "CHAN": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_RATE_FLAG = '1'",
+          "template": "{cur_period}，较上月，主航道收入占比下降二级办数量: {channel_rate_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "channel_rate_count": {
+              "operation": "count",
+              "source_key": "channel_rate_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_GPM_FLAG = '1'",
+          "template": "主航道毛利下降二级办数量: {channel_gpm_count}",
+          "fields": {
+            "channel_gpm_count": {
+              "operation": "count",
+              "source_key": "channel_gpm_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_BASELINE_FLAG = 1 ORDER BY GPM ASC",
+          "template": "主航道毛利<50%二级办: {gpm_pro}",
+          "fields": {
+            "gpm_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC",
+          "template": "主航道毛利同比下降>1%二级办: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC",
+          "template": "主航道毛利环比下降>1%二级办: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = '1' ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC",
+          "template": "主航道毛利连续2月下降二级办: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_BASELINE_FLAG = 1 ORDER BY CHANNEL_RATE ASC",
+          "template": "主航道收入占比<50%二级办: {channel_rate_pro}",
+          "fields": {
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道收入占比同比下降>1%二级办: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道收入占比环比下降>1%二级办: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道收入占比连续2月下降二级办: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC LIMIT 5",
+          "template": "客户主航道占比<50%且网线硬盘指定外购占比>10% <cust_list>TOP</cust_list>，以下所示TOP5：其中<cust_list_offi>{region_influence}</cust_list_offi>，客户{customers}，影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "异常客户：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common",
+              "name_key": "assess_center_name_lv6"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "channel_rate",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "<cust_detail>\ncust_detail_offi={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3}，主航道占比{v4}，网线硬盘指定外购占比{v5}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_BASELINE_FLAG = 1 ORDER BY GPM ASC",
+          "template": "主航道累计毛利<50%二级办: {gpm_pro}",
+          "fields": {
+            "gpm_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC",
+          "template": "主航道累计毛利同比下降>1%二级办: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC",
+          "template": "主航道累计毛利环比下降>1%二级办: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = '1' ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC",
+          "template": "主航道累计毛利连续2月下降二级办: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_BASELINE_FLAG = 1 ORDER BY CHANNEL_RATE ASC",
+          "template": "主航道累计收入占比<50%二级办: {channel_rate_pro}",
+          "fields": {
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道累计收入占比同比下降>1%二级办: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道累计收入占比环比下降>1%二级办: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "assess_center_name_lv6",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道累计收入占比连续2月下降二级办: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户主航道累计占比<50%且网线硬盘指定外购累计占比>10% <cust_list>TOP</cust_list>，以下所示TOP5：其中<cust_list_offi>{region_influence}</cust_list_offi>，客户{customers}，影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "异常客户：无",
+          "fields": {
+            "region_influence": {
+              "operation": "extract_most_common",
+              "name_key": "assess_center_name_lv6"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "assess_center_name_lv6",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "assess_center_name_lv6",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "channel_rate",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "<cust_detail>\ncust_detail_offi={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3}，主航道累计占比{v4}，网线硬盘指定外购累计占比{v5}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "IND": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = 1 ",
+          "use_data_type": "ACC",
+          "template": "{cur_period}，行业未达成毛利基线数量: {gpm_task_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "gpm_task_count": {
+              "operation": "count",
+              "source_key": "gpm_task_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_ACHIEVE_FLAG = 1 ",
+          "use_data_type": "ACC",
+          "template": "行业高于毛利基线1个点以上数量: {gpm_achieve_count}",
+          "fields": {
+            "gpm_achieve_count": {
+              "operation": "count",
+              "source_key": "gpm_achieve_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "毛利同比下降>1%行业: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "毛利环比下降>1%行业: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "毛利连续2月下降行业: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道收入占比同比下降>1%行业: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道收入占比环比下降>1%行业: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道收入占比连续2月下降行业: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_AVERAGE_FLAG = 1 ORDER BY CHANNEL_RATE ASC;",
+          "template": "主航道收入占比低于省区均值({incomes_rate_ave})行业: {channel_rate_pro}",
+          "fields": {
+            "incomes_rate_ave": {
+              "operation": "extract_avg",
+              "name_key": "channel_average",
+              "format": "percentage"
+            },
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "行业客户低毛利异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_ind1>{most_common_industry}</cust_list_ind1>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "行业异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "industry_lv1_name"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "industry_lv1_name",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "channel_rate"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_ind1={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3:.1%}、收入<amount>{v4:.2f}</amount>、主航道占比{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC",
+          "template": "毛利预算未达标行业: {gpm_task_pro}",
+          "fields": {
+            "gpm_task_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "累计毛利同比下降>1%行业: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "累计毛利环比下降>1%行业: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "累计毛利连续2月下降行业: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道累计收入占比同比下降>1%行业: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道累计收入占比环比下降>1%行业: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道累计收入占比连续2月下降行业: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_AVERAGE_FLAG = 1 ORDER BY CHANNEL_RATE ASC;",
+          "template": "主航道累计收入占比低于省区均值({incomes_rate_ave})行业: {channel_rate_pro}",
+          "fields": {
+            "incomes_rate_ave": {
+              "operation": "extract_avg",
+              "name_key": "channel_average",
+              "format": "percentage"
+            },
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "行业客户低毛利异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_ind1>{most_common_industry}</cust_list_ind1>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "行业异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "industry_lv1_name"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "industry_lv1_name",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "channel_rate"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_ind1={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3:.1%}、累计收入<amount>{v4:.2f}</amount>、主航道累计占比{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "PROD": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = 1 ;",
+          "use_data_type": "ACC",
+          "template": "{cur_period}，产品线未达成毛利基线数量: {gpm_task_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "gpm_task_count": {
+              "operation": "count",
+              "source_key": "gpm_task_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_ACHIEVE_FLAG = 1 ;",
+          "use_data_type": "ACC",
+          "template": "产品线高于毛利基线1个点以上数量: {gpm_achieve_count}",
+          "fields": {
+            "gpm_achieve_count": {
+              "operation": "count",
+              "source_key": "gpm_achieve_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "毛利同比下降>1%产品线: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "毛利环比下降>1%产品线: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "毛利连续2月下降产品线: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_YOY_FLAG = 1 ORDER BY DISCOUNT_YOY ASC limit 20",
+          "template": "折扣同比下降>1%产品线: {discount_yoy_pro}",
+          "fields": {
+            "discount_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_MOM_FLAG = 1 ORDER BY DISCOUNT_MOM ASC limit 20",
+          "template": "折扣环比下降>1%产品线: {discount_mom_pro}",
+          "fields": {
+            "discount_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_DECLINE_FLAG = 1 ORDER BY ((DISCOUNT-DISCOUNT_M)-(DISCOUNT_M-DISCOUNT_MM)) ASC limit 20;",
+          "template": "折扣连续2月下降产品线: {discount_decline_pro}",
+          "fields": {
+            "discount_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "discount_mm",
+                "discount_m",
+                "discount"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户低毛利产品线异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_prd2>{most_common_industry}</cust_list_prd2>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "产品线异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "product_line_lv2_inland_report"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "product_line_lv2_inland_report",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "discount_total"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_prd2={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3:.1%}、收入<amount>{v4:.2f}</amount>、折扣{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_TASK_FLAG = '1' ORDER BY GPM_GAP ASC limit 20",
+          "template": "毛利预算未达标产品线: {gpm_task_pro}",
+          "fields": {
+            "gpm_task_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "累计毛利同比下降>1%产品线: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "累计毛利环比下降>1%产品线: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "累计毛利连续2月下降产品线: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_YOY_FLAG = 1 ORDER BY DISCOUNT_YOY ASC limit 20",
+          "template": "累计折扣同比下降>1%产品线: {discount_yoy_pro}",
+          "fields": {
+            "discount_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_MOM_FLAG = 1 ORDER BY DISCOUNT_MOM ASC limit 20",
+          "template": "累计折扣环比下降>1%产品线: {discount_mom_pro}",
+          "fields": {
+            "discount_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_DECLINE_FLAG = 1 ORDER BY ((DISCOUNT-DISCOUNT_M)-(DISCOUNT_M-DISCOUNT_MM)) ASC limit 20;",
+          "template": "累计折扣连续2月下降产品线: {discount_decline_pro}",
+          "fields": {
+            "discount_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "discount_mm",
+                "discount_m",
+                "discount"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户低毛利产品线异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_prd2>{most_common_industry}</cust_list_prd2>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "产品线异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "product_line_lv2_inland_report"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "product_line_lv2_inland_report",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "discount_total"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_prd2={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3:.1%}、累计收入<amount>{v4:.2f}</amount>、累计折扣{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    }
+  },
+  "OFFICE": {
+    "ORG": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_yoy_flag = '1' ORDER BY gpm_yoy ASC",
+          "template": "毛利同比下降>1%业务员: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_yoy"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_mom_flag = '1' ORDER BY gpm_mom ASC",
+          "template": "毛利环比下降>1%业务员: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mom"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_decline_flag = '1' ORDER BY ((gpm-gpm_m)-(gpm_m-gpm_mm)) ASC",
+          "template": "毛利连续2月下降业务员: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1}/{v2}/{v3})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND special_rate_flag = '1' ORDER BY special_rate DESC",
+          "template": "网线&硬盘占比>20%业务员: {special_rate_pro}",
+          "fields": {
+            "special_rate_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '工程' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "工程项目低毛利<prj_list>TOP</prj_list>，以下所示TOP5：其中业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "工程异常项目：无",
+          "fields": {
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "salesman_id",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prj_list_sale>{value}({key})</prj_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "order_customer_crm",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prj_list_cust>{value}({key})</prj_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_name",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prj_detail>\nprj_detail_sale={name}\n{v0}(<contract>{v1}</contract>)\n毛利率{v2}\n</prj_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '产品' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "产品合同低毛利<prd_list>TOP</prd_list>，以下所示TOP5：其中业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "产品异常合同：无",
+          "fields": {
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "salesman_id",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prd_list_sale>{value}({key})</prd_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "order_customer_crm",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prd_list_cust>{value}({key})</prd_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_name",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prd_detail>\nprd_detail_sale={name}\n{v0}(<contract>{v1}</contract>)\n毛利率{v2}\n</prd_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_yoy_flag = '1' ORDER BY gpm_yoy ASC",
+          "template": "累计毛利同比下降>1%业务员: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_yoy"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_mom_flag = '1' ORDER BY gpm_mom ASC",
+          "template": "累计毛利环比下降>1%业务员: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mom"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND gpm_decline_flag = '1' ORDER BY ((gpm-gpm_m)-(gpm_m-gpm_mm)) ASC",
+          "template": "累计毛利连续2月下降业务员: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1}/{v2}/{v3})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND special_rate_flag = '1' ORDER BY special_rate DESC",
+          "template": "网线&硬盘累计收入占比>20%业务员: {special_rate_pro}",
+          "fields": {
+            "special_rate_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '工程' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "工程项目低毛利<prj_list>TOP</prj_list>，以下所示TOP5：其中业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "工程异常项目：无",
+          "fields": {
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "salesman_id",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prj_list_sale>{value}({key})</prj_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "order_customer_crm",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prj_list_cust>{value}({key})</prj_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_name",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prj_detail>\nprj_detail_sale={name}\n{v0}(<contract>{v1}</contract>)\n累计毛利率{v2}\n</prj_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = 1 AND PRD_PRJ_FLAG = '产品' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "产品合同低毛利<prd_list>TOP</prd_list>，以下所示TOP5：其中业务员{salesmen}，客户{customers}，对整体影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "产品异常合同：无",
+          "fields": {
+            "salesmen": {
+              "operation": "extract_top_influencers",
+              "name_key": "salesman_id",
+              "id_key": "salesman_id",
+              "id_value": "salesman_name",
+              "format": "string",
+              "item_format": "<prd_list_sale>{value}({key})</prd_list_sale>",
+              "separator": "、",
+              "limit": 2
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "order_customer_crm",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<prd_list_cust>{value}({key})</prd_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_name",
+              "value_keys": [
+                "project_name",
+                "project_number",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<prd_detail>\nprd_detail_sale={name}\n{v0}(<contract>{v1}</contract>)\n累计毛利率{v2}\n</prd_detail>\n",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "CHAN": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_RATE_FLAG = '1'",
+          "template": "{cur_period}，较上月，主航道收入占比下降业务员数量: {channel_rate_count}",
+          "fields": {
+            "cur_period": {
+              "operation": "get_period",
+              "source_key": "period"
+            },
+            "channel_rate_count": {
+              "operation": "count",
+              "source_key": "channel_rate_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_GPM_FLAG = '1'",
+          "template": "主航道毛利下降业务员数量: {channel_gpm_count}",
+          "fields": {
+            "channel_gpm_count": {
+              "operation": "count",
+              "source_key": "channel_gpm_flag"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_BASELINE_FLAG = 1 ORDER BY GPM ASC",
+          "template": "主航道毛利<50%业务员: {gpm_pro}",
+          "fields": {
+            "gpm_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "<underline><salesman>{v0}({name})</salesman>({v1})</underline>",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC",
+          "template": "主航道毛利同比下降>1%业务员: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_yoy"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC",
+          "template": "主航道毛利环比下降>1%业务员: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mom"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = '1' ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC",
+          "template": "主航道毛利连续2月下降业务员: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1}/{v2}/{v3})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_BASELINE_FLAG = 1 ORDER BY CHANNEL_RATE ASC",
+          "template": "主航道收入占比<50%业务员: {channel_rate_pro}",
+          "fields": {
+            "channel_rate_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道收入占比同比下降>1%业务员: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_yoy"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道收入占比环比下降>1%业务员: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_mom"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道收入占比连续2月下降业务员: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1}/{v2}/{v3})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC LIMIT 5",
+          "template": "客户主航道占比<50%且网线硬盘指定外购占比>10% <cust_list>TOP</cust_list>，以下所示TOP5：其中客户{customers}，影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "异常客户：无",
+          "fields": {
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "order_customer_crm",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "gpm",
+                "channel_rate",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "<cust_detail>\ncust_detail_sale={name}\ncust_detail_cust={v0}({v1})\n毛利率{v2}，主航道占比{v3}，网线硬盘指定外购占比{v4}；\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_BASELINE_FLAG = 1 ORDER BY GPM ASC",
+          "template": "主航道累计毛利<50%业务员: {gpm_pro}",
+          "fields": {
+            "gpm_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC",
+          "template": "主航道累计毛利同比下降>1%业务员: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_yoy"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC",
+          "template": "主航道累计毛利环比下降>1%业务员: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mom"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = '1' ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC",
+          "template": "主航道累计毛利连续2月下降业务员: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1}/{v2}/{v3})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_BASELINE_FLAG = 1 ORDER BY CHANNEL_RATE ASC",
+          "template": "主航道累计收入占比<50%业务员: {channel_rate_pro}",
+          "fields": {
+            "channel_rate_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道累计收入占比同比下降>1%业务员: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_yoy"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道累计收入占比环比下降>1%业务员: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_mom"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道累计收入占比连续2月下降业务员: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_id",
+              "value_keys": [
+                "salesman_name",
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{v0}({name})({v1}/{v2}/{v3})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户主航道累计占比<50%且网线硬盘指定外购累计占比>10% <cust_list>TOP</cust_list>，以下所示TOP5：其中客户{customers}，影响较大；\n        {project_details}",
+          "condition": "fields.get('project_details')",
+          "non_message": "异常客户：无",
+          "fields": {
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "order_customer_crm",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "project_details": {
+              "operation": "group_multi_value",
+              "name_key": "salesman_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "gpm",
+                "channel_rate",
+                "special_rate"
+              ],
+              "format": "percentage",
+              "item_format": "<cust_detail>\ncust_detail_sale={name}\ncust_detail_cust={v0}({v1})\n累计毛利率{v2}，主航道累计占比{v3}，网线硬盘指定外购累计占比{v4}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "IND": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "毛利同比下降>1%行业: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "毛利环比下降>1%行业: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "毛利连续2月下降行业: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道收入占比同比下降>1%行业: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道收入占比环比下降>1%行业: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道收入占比连续2月下降行业: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_AVERAGE_FLAG = 1 ORDER BY CHANNEL_RATE ASC;",
+          "template": "主航道收入占比低于业务员均值({incomes_rate_ave})行业: {channel_rate_pro}",
+          "fields": {
+            "incomes_rate_ave": {
+              "operation": "extract_avg",
+              "name_key": "channel_average",
+              "format": "percentage"
+            },
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "行业客户低毛利异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_ind1>{most_common_industry}</cust_list_ind1>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "行业异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "industry_lv1_name"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "industry_lv1_name",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "channel_rate"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_ind1={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3:.1%}、收入<amount>{v4:.2f}</amount>、主航道占比{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "累计毛利同比下降>1%行业: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "累计毛利环比下降>1%行业: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "累计毛利连续2月下降行业: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_YOY_FLAG = 1 ORDER BY CHANNEL_YOY ASC",
+          "template": "主航道累计收入占比同比下降>1%行业: {channel_yoy_pro}",
+          "fields": {
+            "channel_yoy_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_MOM_FLAG = 1 ORDER BY CHANNEL_MOM ASC",
+          "template": "主航道累计收入占比环比下降>1%行业: {channel_mom_pro}",
+          "fields": {
+            "channel_mom_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_DECLINE_FLAG = '1' ORDER BY ((CHANNEL_RATE-CHANNEL_M)-(CHANNEL_M-CHANNEL_MM)) ASC",
+          "template": "主航道累计收入占比连续2月下降行业: {channel_decline_pro}",
+          "fields": {
+            "channel_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "channel_mm",
+                "channel_m",
+                "channel_rate"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND CHANNEL_AVERAGE_FLAG = 1 ORDER BY CHANNEL_RATE ASC;",
+          "template": "主航道累计收入占比低于业务员均值({incomes_rate_ave})行业: {channel_rate_pro}",
+          "fields": {
+            "incomes_rate_ave": {
+              "operation": "extract_avg",
+              "name_key": "channel_average",
+              "format": "percentage"
+            },
+            "channel_rate_pro": {
+              "operation": "group",
+              "name_key": "industry_lv1_name",
+              "value_key": "channel_rate",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "行业客户低毛利异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_ind1>{most_common_industry}</cust_list_ind1>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "行业异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "industry_lv1_name"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "industry_lv1_name",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "industry_lv1_name",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "channel_rate"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_ind1={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3:.1%}、累计收入<amount>{v4:.2f}</amount>、主航道累计占比{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    "PROD": {
+      "CURRENT": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "毛利同比下降>1%产品线: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "毛利环比下降>1%产品线: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "毛利连续2月下降产品线: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_YOY_FLAG = 1 ORDER BY DISCOUNT_YOY ASC limit 20",
+          "template": "折扣同比下降>1%产品线: {discount_yoy_pro}",
+          "fields": {
+            "discount_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_MOM_FLAG = 1 ORDER BY DISCOUNT_MOM ASC limit 20",
+          "template": "折扣环比下降>1%产品线: {discount_mom_pro}",
+          "fields": {
+            "discount_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_DECLINE_FLAG = 1 ORDER BY ((DISCOUNT-DISCOUNT_M)-(DISCOUNT_M-DISCOUNT_MM)) ASC limit 20;",
+          "template": "折扣连续2月下降产品线: {discount_decline_pro}",
+          "fields": {
+            "discount_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "discount_mm",
+                "discount_m",
+                "discount"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户低毛利产品线异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_prd2>{most_common_industry}</cust_list_prd2>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "产品线异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "product_line_lv2_inland_report"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "product_line_lv2_inland_report",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "discount_total"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_prd2={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n毛利率{v3:.1%}、收入<amount>{v4:.2f}</amount>、折扣{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "CUMULATIVE": [
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_YOY_FLAG = 1 ORDER BY GPM_YOY ASC limit 20",
+          "template": "累计毛利同比下降>1%行业: {gpm_yoy_pro}",
+          "fields": {
+            "gpm_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_MOM_FLAG = 1 ORDER BY GPM_MOM ASC limit 20",
+          "template": "累计毛利环比下降>1%产品线: {gpm_mom_pro}",
+          "fields": {
+            "gpm_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "gpm_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND GPM_DECLINE_FLAG = 1 ORDER BY ((GPM-GPM_M)-(GPM_M-GPM_MM)) ASC limit 20",
+          "template": "累计毛利连续2月下降产品线: {gpm_decline_pro}",
+          "fields": {
+            "gpm_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "gpm_mm",
+                "gpm_m",
+                "gpm"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_YOY_FLAG = 1 ORDER BY DISCOUNT_YOY ASC limit 20",
+          "template": "累计折扣同比下降>1%产品线: {discount_yoy_pro}",
+          "fields": {
+            "discount_yoy_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_yoy",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_MOM_FLAG = 1 ORDER BY DISCOUNT_MOM ASC limit 20",
+          "template": "累计折扣环比下降>1%产品线: {discount_mom_pro}",
+          "fields": {
+            "discount_mom_pro": {
+              "operation": "group",
+              "name_key": "product_line_lv2_inland_report",
+              "value_key": "discount_mom",
+              "format": "percentage",
+              "item_format": "{name}({value})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_DORIS WHERE {} AND DISCOUNT_DECLINE_FLAG = 1 ORDER BY ((DISCOUNT-DISCOUNT_M)-(DISCOUNT_M-DISCOUNT_MM)) ASC limit 20;",
+          "template": "累计折扣连续2月下降产品线: {discount_decline_pro}",
+          "fields": {
+            "discount_decline_pro": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "discount_mm",
+                "discount_m",
+                "discount"
+              ],
+              "format": "percentage",
+              "item_format": "{name}({v0}/{v1}/{v2})",
+              "separator": "、"
+            }
+          }
+        },
+        {
+          "sql": "SELECT * FROM DM_F_AI_GROSS_ANALYZE_LIST_DORIS WHERE {} AND GPM_TASK_FLAG = '1' AND SORT_ID <= 20 ORDER BY SORT_ID ASC limit 5;",
+          "template": "客户低毛利产品线异常<cust_list>TOP</cust_list>，以下列示TOP5：其中<cust_list_prd2>{most_common_industry}</cust_list_prd2>客户{customers}，影响较大；\n       {industry_details}",
+          "condition": "fields.get('industry_details')",
+          "non_message": "产品线异常客户：无",
+          "fields": {
+            "most_common_industry": {
+              "operation": "extract_most_common",
+              "name_key": "product_line_lv2_inland_report"
+            },
+            "customers": {
+              "operation": "extract_top_influencers",
+              "name_key": "product_line_lv2_inland_report",
+              "id_key": "order_customer_crm",
+              "id_value": "order_customer_name",
+              "format": "string",
+              "item_format": "<cust_list_cust>{value}({key})</cust_list_cust>",
+              "separator": "、",
+              "limit": 2
+            },
+            "industry_details": {
+              "operation": "group_multi_value",
+              "name_key": "product_line_lv2_inland_report",
+              "value_keys": [
+                "order_customer_name",
+                "order_customer_crm",
+                "salesman_name",
+                "gpm",
+                "income_total",
+                "discount_total"
+              ],
+              "item_format": "<cust_detail>\ncust_detail_prd2={name}\ncust_detail_cust={v0}({v1})\ncust_detail_sale={v2}\n累计毛利率{v3:.1%}、累计收入<amount>{v4:.2f}</amount>、累计折扣{v5:.1%}\n</cust_detail>",
+              "separator": "\n",
+              "limit": 5
+            }
+          }
+        }
+      ]
+    }
+  }
+}
